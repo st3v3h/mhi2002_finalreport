@@ -1,0 +1,62 @@
+---
+title: "MHI2002 Final Report"
+author: "Steve Hawley"
+date: "April 12, 2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+TEXT HERE 
+
+```{r}
+library(tidyverse)
+
+noshow <- read.csv("KaggleV2-May-2016.csv")
+
+str(noshow)
+
+col_int <- c("Scholarship", "Hipertension", "Diabetes","Alcoholism","Handcap","SMS_received")
+
+noshow[col_int] <- lapply(noshow[col_int], factor)
+
+summary(noshow)
+
+noshow <- noshow %>% 
+  select(PatientId,Gender,Age,Neighbourhood:No.show) %>% 
+  filter(Alcoholism=="1") 
+
+#remove duplicate IDs
+noshow <- subset(noshow, !duplicated(noshow[,1]))
+
+plot(noshow$No.show)
+
+write.csv(noshow,"output2.csv")
+
+model <- glm(No.show~Gender+Age+Scholarship+Hipertension+Diabetes+Handcap+SMS_received,
+             family = binomial(link = 'logit'),
+             data = noshow)
+
+summary(model)
+
+chidiff <- model$null.deviance - model$deviance
+dfdiff <- model$df.null - model$df.residual
+chidiff
+dfdiff
+
+pchisq(chidiff,dfdiff,lower.tail = F)
+
+correct <- model$fitted.values
+
+binarycorrect <- ifelse(correct>0.5,1,0)
+
+binarycorrect <- factor(binarycorrect,
+                        levels = c(0,1),
+                        labels = c("No show No", "No show Yes"))
+
+table(noshow$No.show, binarycorrect)
+
+summary(binarycorrect)
+```
+
+

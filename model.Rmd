@@ -29,6 +29,7 @@ noshow <- noshow %>%
 #remove duplicate IDs
 noshow <- subset(noshow, !duplicated(noshow[,1]))
 
+#plot
 plot(noshow$No.show)
 
 write.csv(noshow,"output2.csv")
@@ -57,6 +58,7 @@ binarycorrect <- factor(binarycorrect,
 table(noshow$No.show, binarycorrect)
 
 summary(binarycorrect)
+
 ```
 
 

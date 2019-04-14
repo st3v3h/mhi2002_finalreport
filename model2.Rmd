@@ -20,21 +20,34 @@ noshow <- read.csv("KaggleV2-May-2016.csv")
 #review the data structure
 str(noshow)
 
+noshow$ScheduledDay <- as.Date(noshow$ScheduledDay)
+noshow$AppointmentDay <- as.Date(noshow$AppointmentDay)
+
+
+
 #convert the binomial/polynomial INTs into factors (each is basically Y/N)
 col_int <- c("Scholarship", "Hipertension", "Diabetes","Alcoholism","Handcap","SMS_received")
 noshow[col_int] <- lapply(noshow[col_int], factor)
 
 #Segment the data into hx of Alcoholism vs. no hx of Alcoholism 
-#also removing unneeded variables: AppointID, Schedual/Appt time
+#also calculating the difference (in days) between appointment day and schedule day
 noshow <- noshow %>% 
-  select(PatientId,Gender,Age,Neighbourhood:No.show) %>% 
+  mutate(ddif=difftime(noshow$AppointmentDay, noshow$ScheduledDay, units = "days")) %>% 
+  select(PatientId,Gender,Age,ddif,Neighbourhood:No.show) %>% 
   filter(Alcoholism=="1") 
 
+noshow$ddif <- as.numeric(noshow$ddif)
+
 #remove duplicate IDs (i.e., only want to keep one record per patient and not their entire appt hx)
-noshow <- subset(noshow, !duplicated(noshow[,1]))
+#noshow <- subset(noshow, !duplicated(noshow[,1]))
 
 #Get a summary data subset
 summary(noshow)
+head(noshow)
+
+#Removing Handcap since almost all values are 0
+noshow <- noshow %>% 
+  select(-Handcap)
 
 ```
 
@@ -48,21 +61,21 @@ library(caTools) #for splitting data
 library(ROCR) # for ROC curve
 
 #baseline model
-table(noshow$No.show)
-1160/(1160+346)*100
+bl <- table(noshow$No.show)
+bl[1]/(bl[1]+bl[2])*100
 
 #splitting the data
 set.seed(88)
-split <- sample.split(noshow$No.show, SplitRatio = 0.75)
+split <- sample.split(noshow$No.show, SplitRatio = 0.80)
 
 #create training and test data
 noshow_train <- subset(noshow, split == T)
 noshow_test <- subset(noshow, split == F)
 
-write.csv(noshow_train, "noshow_train.csv")
+#write.csv(noshow_train, "noshow_train.csv")
 
 #build the model
-noshow_mod <- glm(No.show~Gender+Age+Scholarship+Hipertension+Diabetes+Handcap+SMS_received,
+noshow_mod <- glm(No.show~Gender+Age+ddif+Scholarship+Hipertension+Diabetes+SMS_received,
              family = binomial,
              data = noshow_train)
 
@@ -113,16 +126,14 @@ Thus, this model is approximately 2% more accurate than simply assigning every p
 
 #Simulator
 ```{r}
-gend <- 'M'
-age <- 20
-schol <- as.factor(0)
+gend <- 'F'
+age <- 23
+schol <- as.factor(1)
 hiper <- as.factor(1)
-diab <- as.factor(0)
-hand <- as.factor(1)
-sms <- as.factor(0)
+diab <- as.factor(1)
+sms <- as.factor(1)
 
-predict(noshow_mod, type = "response", newdata = data.frame(Gender=gend,Age=age,Scholarship=schol,Hipertension=hiper,Diabetes=diab,Handcap=hand,SMS_received=sms))
-
+predict(noshow_mod, type = "response", newdata = data.frame(Gender=gend,Age=age,Scholarship=schol,Hipertension=hiper,Diabetes=diab,SMS_received=sms))
 
 
 ```

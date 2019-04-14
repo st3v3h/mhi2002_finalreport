@@ -54,7 +54,7 @@ noshow <- noshow %>%
 #Creating the model
 
 ##Baseline Model
-We can see that most (1160/1506) people show up for their appointments (i.e., No Show = No). Thus, if the model were to predict "No Show = No"" for every patient, our model would be 77% accurate. 
+We can see that most (2683/3360) people show up for their appointments (i.e., No Show = No). Thus, if the model were to predict "No Show = No"" for every patient, our model would be 79.9% accurate. 
 
 ```{r, warning=FALSE}
 library(caTools) #for splitting data
@@ -62,6 +62,7 @@ library(ROCR) # for ROC curve
 
 #baseline model
 bl <- table(noshow$No.show)
+bl
 bl[1]/(bl[1]+bl[2])*100
 
 #splitting the data
@@ -92,7 +93,7 @@ ROCRperf <- performance(ROCRpred, "tpr","fpr")
 plot(ROCRperf, colorize=T, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
 
 #setting the threshold to >=0.39. This was basically chosen via trial and error looking for the highest accuracy
-spec_table <- table(noshow_train$No.show, predict_train >=0.39)
+spec_table <- table(noshow_train$No.show, predict_train >=0.5)
 spec_table
 
 #sensitivity
@@ -116,7 +117,7 @@ auc
 ```{r}
 predict_test <- predict(noshow_mod, type = "response", newdata = noshow_test)
 
-test_tble <- table(noshow_test$No.show,predict_test >=0.39)
+test_tble <- table(noshow_test$No.show,predict_test >=0.6)
 
 #accuracy
 (test_tble[1]+test_tble[4])/(test_tble[1]+test_tble[2]+test_tble[3]+test_tble[4])
@@ -126,14 +127,15 @@ Thus, this model is approximately 2% more accurate than simply assigning every p
 
 #Simulator
 ```{r}
-gend <- 'F'
-age <- 23
-schol <- as.factor(1)
-hiper <- as.factor(1)
-diab <- as.factor(1)
+gend <- 'M'
+age <- 76
+ddif <- 0
+schol <- as.factor(0)
+hiper <- as.factor(0)
+diab <- as.factor(0)
 sms <- as.factor(1)
 
-predict(noshow_mod, type = "response", newdata = data.frame(Gender=gend,Age=age,Scholarship=schol,Hipertension=hiper,Diabetes=diab,SMS_received=sms))
+predict(noshow_mod, type = "response", newdata = data.frame(Gender=gend,Age=age,ddif=ddif,Scholarship=schol,Hipertension=hiper,Diabetes=diab,SMS_received=sms))
 
 
 ```

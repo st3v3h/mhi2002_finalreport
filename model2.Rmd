@@ -1,0 +1,128 @@
+---
+title: "MHI2002 Final Report"
+author: "Steve Hawley"
+date: "April 12, 2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+*Following the tutorial found here: https://medium.com/analytics-vidhya/a-guide-to-machine-learning-in-r-for-beginners-part-5-4c00f2366b90*
+
+
+#Preparing the data 
+
+```{r, warning=FALSE}
+library(tidyverse)
+
+#load the dataset
+noshow <- read.csv("KaggleV2-May-2016.csv")
+
+#review the data structure
+str(noshow)
+
+#convert the binomial/polynomial INTs into factors (each is basically Y/N)
+col_int <- c("Scholarship", "Hipertension", "Diabetes","Alcoholism","Handcap","SMS_received")
+noshow[col_int] <- lapply(noshow[col_int], factor)
+
+#Segment the data into hx of Alcoholism vs. no hx of Alcoholism 
+#also removing unneeded variables: AppointID, Schedual/Appt time
+noshow <- noshow %>% 
+  select(PatientId,Gender,Age,Neighbourhood:No.show) %>% 
+  filter(Alcoholism=="1") 
+
+#remove duplicate IDs (i.e., only want to keep one record per patient and not their entire appt hx)
+noshow <- subset(noshow, !duplicated(noshow[,1]))
+
+#Get a summary data subset
+summary(noshow)
+
+```
+
+#Creating the model
+
+##Baseline Model
+We can see that most (1160/1506) people show up for their appointments (i.e., No Show = No). Thus, if the model were to predict "No Show = No"" for every patient, our model would be 77% accurate. 
+
+```{r, warning=FALSE}
+library(caTools) #for splitting data
+library(ROCR) # for ROC curve
+
+#baseline model
+table(noshow$No.show)
+1160/(1160+346)*100
+
+#splitting the data
+set.seed(88)
+split <- sample.split(noshow$No.show, SplitRatio = 0.75)
+
+#create training and test data
+noshow_train <- subset(noshow, split == T)
+noshow_test <- subset(noshow, split == F)
+
+write.csv(noshow_train, "noshow_train.csv")
+
+#build the model
+noshow_mod <- glm(No.show~Gender+Age+Scholarship+Hipertension+Diabetes+Handcap+SMS_received,
+             family = binomial,
+             data = noshow_train)
+
+summary(noshow_mod)
+
+#making predictions
+predict_train <- predict(noshow_mod, type = "response")
+summary(predict_train)
+tapply(predict_train, noshow_train$No.show, mean)
+
+#determining the threshold to use via ROC curve
+ROCRpred <- prediction(predict_train, noshow_train$No.show)
+ROCRperf <- performance(ROCRpred, "tpr","fpr")
+plot(ROCRperf, colorize=T, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+
+#setting the threshold to >=0.39. This was basically chosen via trial and error looking for the highest accuracy
+spec_table <- table(noshow_train$No.show, predict_train >=0.39)
+spec_table
+
+#sensitivity
+spec_table[4]/(spec_table[2]+spec_table[4])
+
+#specificity
+spec_table[1]/(spec_table[1]+spec_table[3])
+
+#accuracy
+(spec_table[1]+spec_table[4])/(spec_table[1]+spec_table[2]+spec_table[3]+spec_table[4])
+
+#Area under the curve
+auc.temp <- performance(ROCRpred,"auc")
+auc <- as.numeric(auc.temp@y.values)
+auc
+
+```
+#Testing the model
+
+
+```{r}
+predict_test <- predict(noshow_mod, type = "response", newdata = noshow_test)
+
+test_tble <- table(noshow_test$No.show,predict_test >=0.39)
+
+#accuracy
+(test_tble[1]+test_tble[4])/(test_tble[1]+test_tble[2]+test_tble[3]+test_tble[4])
+
+```
+Thus, this model is approximately 2% more accurate than simply assigning every patient as "No Show = No"
+
+#Simulator
+```{r}
+gend <- 'M'
+age <- 20
+schol <- as.factor(0)
+hiper <- as.factor(1)
+diab <- as.factor(0)
+hand <- as.factor(1)
+sms <- as.factor(0)
+
+predict(noshow_mod, type = "response", newdata = data.frame(Gender=gend,Age=age,Scholarship=schol,Hipertension=hiper,Diabetes=diab,Handcap=hand,SMS_received=sms))
+
+
+
+```

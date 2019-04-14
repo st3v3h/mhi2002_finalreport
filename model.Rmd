@@ -57,6 +57,7 @@ binarycorrect <- factor(binarycorrect,
 
 table(noshow$No.show, binarycorrect)
 
+#test
 summary(binarycorrect)
 
 ```

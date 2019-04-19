@@ -8,6 +8,15 @@ editor_options:
 ---
 *Following the tutorial found here: https://medium.com/analytics-vidhya/a-guide-to-machine-learning-in-r-for-beginners-part-5-4c00f2366b90*
 
+#QUESTIONS
+1. Does this model actually make sense?
+2. OK to add duplicate patients (but different appointments) into model
+3. No missing data/outliers in no show data set
+4. confirm actual output of model
+5. Why is model no better than simple guessing 'NO'
+
+
+
 
 #Preparing the data 
 

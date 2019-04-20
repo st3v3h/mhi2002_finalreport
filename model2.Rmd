@@ -47,6 +47,11 @@ noshow <- noshow %>%
 
 noshow$ddif <- as.numeric(noshow$ddif)
 
+outliers <- boxplot(noshow$ddif)$out
+noshow1[which(noshow1$ddif %in% outliers),]
+noshow1 <- noshow[-which(noshow$ddif %in% outliers),]
+boxplot(noshow$ddif)
+
 #bin table
 breaks <- c(0,20,40,60,80,100,120)
 bins <- cut(noshow$ddif, breaks, include.lowest = T, right = F)
@@ -79,13 +84,16 @@ noshow <- noshow %>%
 
 noshow %>% 
   ggplot(aes(x=No.show, y=Age))+
-  geom_boxplot() +
+  geom_boxplot() +  
+  theme(text = element_text(size=20)) +
   xlab("No Show") +
-  ylab("Age")
+  ylab("Age") 
+ 
 
 noshow %>% 
   ggplot(aes(x=No.show, y=ddif))+
-  geom_boxplot() +
+  geom_boxplot() +  
+  theme(text = element_text(size=20)) +
   xlab("No Show") +
   ylab("DateDiff")
 
@@ -98,7 +106,16 @@ noshow %>%
 
 noshow %>% 
   ggplot(aes(x=No.show, fill=SMS_received))+
-  geom_bar(position = "fill") +
+  geom_bar(position = "fill") +  
+  theme(text = element_text(size=20)) +
+  xlab("No Show") +
+  ylab("proportion") +
+  scale_y_continuous(labels = scales::percent_format())
+
+noshow %>% 
+  ggplot(aes(x=No.show, fill=Scholarship))+
+  geom_bar(position = "fill") +  
+  theme(text = element_text(size=20)) +
   xlab("No Show") +
   ylab("proportion") +
   scale_y_continuous(labels = scales::percent_format())
@@ -173,7 +190,14 @@ auc
 ```{r}
 predict_test <- predict(noshow_mod, type = "response", newdata = noshow_test)
 
-test_tble <- table(noshow_test$No.show,predict_test >=0.6)
+test_tble <- table(noshow_test$No.show,predict_test >=0.7)
+test_tble
+
+#sensitivity
+test_tble[4]/(test_tble[2]+test_tble[4])
+
+#specificity
+test_tble[1]/(test_tble[1]+test_tble[3])
 
 #accuracy
 (test_tble[1]+test_tble[4])/(test_tble[1]+test_tble[2]+test_tble[3]+test_tble[4])

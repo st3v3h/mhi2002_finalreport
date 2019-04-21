@@ -40,30 +40,37 @@ noshow[col_int] <- lapply(noshow[col_int], factor)
 
 #Segment the data into hx of Alcoholism vs. no hx of Alcoholism 
 #also calculating the difference (in days) between appointment day and schedule day
-noshow <- noshow %>% 
+noshow2 <- noshow %>% 
   mutate(ddif=difftime(noshow$AppointmentDay, noshow$ScheduledDay, units = "days")) %>% 
   select(PatientId,Gender,Age,ddif,Neighbourhood:No.show) %>% 
   filter(Alcoholism=="1", ddif<80) 
 
-noshow$ddif <- as.numeric(noshow$ddif)
+noshow2$ddif <- as.numeric(noshow2$ddif)
+#noshow$ddif <- as.numeric(noshow$ddif)
 
-outliers <- boxplot(noshow$ddif)$out
-noshow1[which(noshow1$ddif %in% outliers),]
-noshow1 <- noshow[-which(noshow$ddif %in% outliers),]
-boxplot(noshow$ddif)
+#hist(noshow2$ddif)
 
-#bin table
-breaks <- c(0,20,40,60,80,100,120)
-bins <- cut(noshow$ddif, breaks, include.lowest = T, right = F)
-summary(bins)
+noshow2$Age <- cut_number(noshow2$Age,6)
+noshow2$ddif <- cut(noshow2$ddif,c(-Inf,0,7,Inf))
+summary(noshow2)
 
-#number of different neighborhoods
-noshow %>% 
-  group_by(Neighbourhood) %>% 
-  summarize(
-    count = n()
-  ) %>% 
-  arrange(desc(count))
+# outliers <- boxplot(noshow$ddif)$out
+# noshow1[which(noshow1$ddif %in% outliers),]
+# noshow1 <- noshow[-which(noshow$ddif %in% outliers),]
+# boxplot(noshow$ddif)
+# 
+# #bin table
+# breaks <- c(0,20,40,60,80,100,120)
+# bins <- cut(noshow$ddif, breaks, include.lowest = T, right = F)
+# summary(bins)
+# 
+# #number of different neighborhoods
+# noshow %>% 
+#   group_by(Neighbourhood) %>% 
+#   summarize(
+#     count = n()
+#   ) %>% 
+#   arrange(desc(count))
 
 #remove duplicate IDs (i.e., only want to keep one record per patient and not their entire appt hx)
 #noshow <- subset(noshow, !duplicated(noshow[,1]))
@@ -82,20 +89,20 @@ noshow <- noshow %>%
 
 ```{r, warning=FALSE}
 
-noshow %>% 
-  ggplot(aes(x=No.show, y=Age))+
-  geom_boxplot() +  
-  theme(text = element_text(size=20)) +
-  xlab("No Show") +
-  ylab("Age") 
- 
-
-noshow %>% 
-  ggplot(aes(x=No.show, y=ddif))+
-  geom_boxplot() +  
-  theme(text = element_text(size=20)) +
-  xlab("No Show") +
-  ylab("DateDiff")
+# noshow %>% 
+#   ggplot(aes(x=No.show, y=Age))+
+#   geom_boxplot() +  
+#   theme(text = element_text(size=20)) +
+#   xlab("No Show") +
+#   ylab("Age") 
+#  
+# 
+# noshow %>% 
+#   ggplot(aes(x=No.show, y=ddif))+
+#   geom_boxplot() +  
+#   theme(text = element_text(size=20)) +
+#   xlab("No Show") +
+#   ylab("DateDiff")
 
 noshow %>% 
   ggplot(aes(x=No.show, fill=Gender))+
@@ -120,6 +127,22 @@ noshow %>%
   ylab("proportion") +
   scale_y_continuous(labels = scales::percent_format())
 
+noshow2 %>% 
+  ggplot(aes(x=No.show, fill=ddif))+
+  geom_bar(position = "fill") +  
+  theme(text = element_text(size=20)) +
+  xlab("No Show") +
+  ylab("proportion") +
+  scale_y_continuous(labels = scales::percent_format())
+
+noshow2 %>% 
+  ggplot(aes(x=No.show, fill=Age))+
+  geom_bar(position = "fill") +  
+  theme(text = element_text(size=20)) +
+  xlab("No Show") +
+  ylab("proportion") +
+  scale_y_continuous(labels = scales::percent_format())
+
 ```
 
 #Creating the model
@@ -138,11 +161,11 @@ bl[1]/(bl[1]+bl[2])*100
 
 #splitting the data
 set.seed(88)
-split <- sample.split(noshow$No.show, SplitRatio = 0.80)
+split <- sample.split(noshow2$No.show, SplitRatio = 0.80)
 
 #create training and test data
-noshow_train <- subset(noshow, split == T)
-noshow_test <- subset(noshow, split == F)
+noshow_train <- subset(noshow2, split == T)
+noshow_test <- subset(noshow2, split == F)
 
 #write.csv(noshow_train, "noshow_train.csv")
 
@@ -164,7 +187,7 @@ ROCRperf <- performance(ROCRpred, "tpr","fpr")
 plot(ROCRperf, colorize=T, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
 
 #setting the threshold to >=0.6. This was basically chosen via trial and error looking for the highest accuracy
-spec_table <- table(noshow_train$No.show, predict_train >=0.8)
+spec_table <- table(noshow_train$No.show, predict_train >=0.5)
 spec_table
 
 #sensitivity
@@ -190,7 +213,7 @@ auc
 ```{r}
 predict_test <- predict(noshow_mod, type = "response", newdata = noshow_test)
 
-test_tble <- table(noshow_test$No.show,predict_test >=0.7)
+test_tble <- table(noshow_test$No.show,predict_test >=0.5)
 test_tble
 
 #sensitivity
@@ -207,15 +230,15 @@ Thus, this model is approximately 2% more accurate than simply assigning every p
 
 #Simulator
 ```{r}
-gend <- 'M'
-age <- 76
-ddif <- 0
-schol <- as.factor(0)
-hiper <- as.factor(0)
-diab <- as.factor(0)
-sms <- as.factor(1)
-
-predict(noshow_mod, type = "response", newdata = data.frame(Gender=gend,Age=age,ddif=ddif,Scholarship=schol,Hipertension=hiper,Diabetes=diab,SMS_received=sms))
+# gend <- 'M'
+# age <- 76
+# ddif <- 0
+# schol <- as.factor(0)
+# hiper <- as.factor(0)
+# diab <- as.factor(0)
+# sms <- as.factor(1)
+# 
+# predict(noshow_mod, type = "response", newdata = data.frame(Gender=gend,Age=age,ddif=ddif,Scholarship=schol,Hipertension=hiper,Diabetes=diab,SMS_received=sms))
 
 
 ```
@@ -230,9 +253,9 @@ f1 <- lrm(No.show~Gender+Age+ddif+Scholarship+Hipertension+Diabetes+SMS_received
              data = noshow_train)
 f1
 cal <- calibrate(f1)
-plot(cal,x = )
+plot(cal)
 
 df <- do.call(rbind, Map(data.frame, A=ROCRpred@predictions, B=ROCRpred@labels))
 
-write.csv(df,"cal.csv")
+write.csv(df,"cal2.csv")
 ```

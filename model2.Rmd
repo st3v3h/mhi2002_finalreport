@@ -50,8 +50,8 @@ noshow2$ddif <- as.numeric(noshow2$ddif)
 
 #hist(noshow2$ddif)
 
-noshow2$Age <- cut_number(noshow2$Age,6)
-noshow2$ddif <- cut(noshow2$ddif,c(-Inf,0,7,Inf))
+noshow2$Age <- cut_number(noshow2$Age,6, labels=c("4-37","38-45","46-50","51-55","56-63",">63"))
+noshow2$ddif <- cut(noshow2$ddif,c(-Inf,0,7,Inf), labels = c("Same day", "Same week", ">7 days"))
 summary(noshow2)
 
 # outliers <- boxplot(noshow$ddif)$out
@@ -76,8 +76,8 @@ summary(noshow2)
 #noshow <- subset(noshow, !duplicated(noshow[,1]))
 
 #Get a summary data subset
-summary(noshow)
-head(noshow)
+summary(noshow2)
+head(noshow2)
 
 #Removing Handcap since almost all values are 0
 noshow <- noshow %>% 
@@ -111,7 +111,7 @@ noshow %>%
   ylab("proportion") +
   scale_y_continuous(labels = scales::percent_format())
 
-noshow %>% 
+noshow2 %>% 
   ggplot(aes(x=No.show, fill=SMS_received))+
   geom_bar(position = "fill") +  
   theme(text = element_text(size=20)) +
@@ -119,7 +119,7 @@ noshow %>%
   ylab("proportion") +
   scale_y_continuous(labels = scales::percent_format())
 
-noshow %>% 
+noshow2 %>% 
   ggplot(aes(x=No.show, fill=Scholarship))+
   geom_bar(position = "fill") +  
   theme(text = element_text(size=20)) +
@@ -155,7 +155,7 @@ library(caTools) #for splitting data
 library(ROCR) # for ROC curve
 
 #baseline model
-bl <- table(noshow$No.show)
+bl <- table(noshow2$No.show)
 bl
 bl[1]/(bl[1]+bl[2])*100
 
@@ -213,7 +213,7 @@ auc
 ```{r}
 predict_test <- predict(noshow_mod, type = "response", newdata = noshow_test)
 
-test_tble <- table(noshow_test$No.show,predict_test >=0.5)
+test_tble <- table(noshow_test$No.show,predict_test >=0.3)
 test_tble
 
 #sensitivity
@@ -246,6 +246,7 @@ Thus, this model is approximately 2% more accurate than simply assigning every p
 #Calibration Curve
 ```{r}
 library(rms)
+library(classifierplots)
 
 f1 <- lrm(No.show~Gender+Age+ddif+Scholarship+Hipertension+Diabetes+SMS_received,
              x = T,
@@ -258,4 +259,11 @@ plot(cal)
 df <- do.call(rbind, Map(data.frame, A=ROCRpred@predictions, B=ROCRpred@labels))
 
 write.csv(df,"cal2.csv")
+cal2 <- read.csv("cal2.csv")
+
+str(cal2)
+
+
+calibration_plot(cal2$B, cal2$A)
+
 ```
